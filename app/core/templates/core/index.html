@@ -442,9 +442,9 @@ window.addEventListener('scroll', () => {
   const text = [
     { w: 'Ship', accent: false },
     { w: 'without', accent: false },
-    { w: 'touching the Server', accent: true },
-    { w: 'the', accent: true },
-    { w: 'server.', accent: true },
+    { w: 'touching', accent: false },
+    { w: 'the', accent: false },
+    { w: 'server.', accent: false },
   ];
   text.forEach(({w, accent}) => {
     const wordSpan = document.createElement('span');
