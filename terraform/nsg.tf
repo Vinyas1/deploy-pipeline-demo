@@ -7,7 +7,7 @@ data "azurerm_network_security_group" "vm_nsg" {
 
 resource "azurerm_network_security_rule" "allow_app" {
   name                        = "allow-app-http"
-  priority                    = 320
+  priority                    = 340
   direction                   = "Inbound"
   access                      = "Allow"
   protocol                    = "Tcp"
