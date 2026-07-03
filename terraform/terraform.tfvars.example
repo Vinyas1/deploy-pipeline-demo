@@ -1,0 +1,4 @@
+resource_group_name = "your-resource-group-name"
+nsg_name            = "your-vm-nsg-name"
+app_port            = 80
+allowed_source      = "0.0.0.0/0"

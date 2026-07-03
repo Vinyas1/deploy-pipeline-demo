@@ -1,0 +1,125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>deploy // {{ version }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <span class="brand">pipeline<span class="brand-dot">.</span>status</span>
+    <span class="badge" id="live-badge"><span class="dot"></span>live</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="terminal" role="img" aria-label="Deploy log showing each pipeline stage completing successfully, ending in LIVE">
+        <div class="terminal-head">
+          <span class="tl-dot r"></span><span class="tl-dot y"></span><span class="tl-dot g"></span>
+          <span class="terminal-title">deploy.sh &mdash; azure-vm</span>
+        </div>
+        <pre class="terminal-body" id="log"></pre>
+      </div>
+
+      <h1 class="headline">Shipped without touching the server.</h1>
+      <p class="sub">Every push to <code>main</code> runs the same five steps you just watched: build, test, package, deploy, verify. No manual SSH, no manual restarts.</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Build info</h2>
+      <dl class="meta-grid">
+        <div class="meta-row">
+          <dt>version</dt>
+          <dd>{{ version }}</dd>
+        </div>
+        <div class="meta-row">
+          <dt>commit</dt>
+          <dd>{{ commit }}</dd>
+        </div>
+        <div class="meta-row">
+          <dt>deployed</dt>
+          <dd>{{ deployed_at|default:"just now" }}</dd>
+        </div>
+        <div class="meta-row">
+          <dt>host</dt>
+          <dd>azure vm</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <h2 class="panel-title">Routes</h2>
+      <table class="route-table">
+        <thead>
+          <tr><th>path</th><th>returns</th><th>used for</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/</code></td>
+            <td>this page</td>
+            <td>human-readable deploy status</td>
+          </tr>
+          <tr>
+            <td><code>/health</code></td>
+            <td><code>{"status":"ok"}</code></td>
+            <td>pipeline checks before calling deploy a success</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel stack-panel">
+      <h2 class="panel-title">Stack</h2>
+      <ul class="chips">
+        <li>Django</li>
+        <li>Docker</li>
+        <li>GitHub Actions</li>
+        <li>Terraform</li>
+        <li>Azure VM</li>
+        <li>Slack</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>built to prove the pipeline works, not to win a design award &mdash; then designed anyway.</span>
+  </footer>
+
+  <script>
+    const lines = [
+      { t: "$ git push origin main", d: 0 },
+      { t: "→ github actions triggered", d: 250, cls: "muted" },
+      { t: "✓ tests passed", d: 550, cls: "ok" },
+      { t: "✓ image built  app:{{ commit }}", d: 850, cls: "ok" },
+      { t: "✓ pushed to registry", d: 1150, cls: "ok" },
+      { t: "✓ deployed to azure vm", d: 1500, cls: "ok" },
+      { t: "✓ /health check passed", d: 1850, cls: "ok" },
+      { t: "● LIVE", d: 2200, cls: "live" },
+    ];
+
+    const logEl = document.getElementById("log");
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function renderLine(line) {
+      const span = document.createElement("div");
+      span.className = "log-line " + (line.cls || "");
+      span.textContent = line.t;
+      logEl.appendChild(span);
+    }
+
+    if (prefersReduced) {
+      lines.forEach(renderLine);
+    } else {
+      lines.forEach((line) => {
+        setTimeout(() => renderLine(line), line.d);
+      });
+    }
+  </script>
+</body>
+</html>
