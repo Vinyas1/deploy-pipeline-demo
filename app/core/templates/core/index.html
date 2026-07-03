@@ -1,25 +1,228 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>deploy // {{ version }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deploy // live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0f1a;
+  --bg-card: rgba(21, 30, 43, 0.55);
+  --bg-card-solid: #151E2B;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: #EDEEF0;
+  --muted: #8A96A3;
+  --amber: #F2A93B;
+  --amber-glow: rgba(242,169,59,0.5);
+  --teal: #3FA796;
+  --teal-glow: rgba(63,167,150,0.5);
+  --red: #E0605A;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); overflow-x: hidden; }
+body { min-height: 100vh; position: relative; cursor: default; }
+::selection { background: var(--amber); color: #0a0f1a; }
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
+
+#bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+.grain {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.scanlines {
+  position: fixed; inset: 0; pointer-events: none; z-index: 2;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+}
+
+.vignette {
+  position: fixed; inset: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at 50% 0%, transparent 40%, rgba(10,15,26,0.6) 100%);
+}
+
+.content { position: relative; z-index: 3; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.5rem 2rem; border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px); background: rgba(10,15,26,0.4);
+  opacity: 0;
+}
+.brand { font-family: var(--mono); font-size: 0.95rem; letter-spacing: 0.02em; }
+.brand-dot { color: var(--amber); animation: pulse 2s ease-in-out infinite; display: inline-block; }
+
+.badge-live {
+  font-family: var(--mono); font-size: 0.78rem; color: var(--teal);
+  display: flex; align-items: center; gap: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid rgba(63,167,150,0.3);
+  background: rgba(63,167,150,0.08); position: relative;
+}
+.ripple-dot { position: relative; width: 8px; height: 8px; }
+.ripple-dot::before, .ripple-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--teal);
+}
+.ripple-dot::after {
+  animation: ripple 1.8s ease-out infinite;
+}
+.ripple-dot::before { box-shadow: 0 0 10px var(--teal); }
+
+main { max-width: 820px; margin: 0 auto; padding: 4rem 1.5rem 5rem; }
+
+.hero { margin-bottom: 3.5rem; }
+
+.terminal {
+  border-radius: 14px; overflow: hidden; margin-bottom: 2.5rem;
+  background: var(--bg-card); backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.02);
+  opacity: 0;
+  position: relative;
+}
+.terminal::before {
+  content: ""; position: absolute; inset: -1px; border-radius: 14px; padding: 1px;
+  background: conic-gradient(from var(--angle, 0deg), transparent 0deg, var(--teal) 60deg, transparent 140deg, var(--amber) 260deg, transparent 340deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: rotateBorder 6s linear infinite; opacity: 0.5;
+  pointer-events: none;
+}
+@property --angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes rotateBorder { to { --angle: 360deg; } }
+
+.terminal-head {
+  display: flex; align-items: center; gap: 0.4rem; padding: 0.75rem 1.1rem;
+  border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); position: relative; z-index: 1;
+}
+.tl-dot { width: 10px; height: 10px; border-radius: 50%; }
+.tl-dot.r { background: var(--red); box-shadow: 0 0 8px var(--red); }
+.tl-dot.y { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.tl-dot.g { background: var(--teal); box-shadow: 0 0 8px var(--teal); }
+.terminal-title { margin-left: 0.6rem; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+
+.terminal-body {
+  margin: 0; padding: 1.4rem 1.4rem 1.7rem; font-family: var(--mono); font-size: 0.87rem;
+  line-height: 2; min-height: 10.5rem; white-space: pre-wrap; position: relative; z-index: 1;
+}
+.log-line { color: var(--muted); opacity: 0; }
+.log-line.ok { color: var(--text); }
+.log-line.show { opacity: 1; animation: lineIn 0.3s ease forwards; }
+.log-line.live {
+  color: var(--amber); font-weight: 700; letter-spacing: 0.06em;
+  text-shadow: 0 0 20px var(--amber-glow);
+}
+.cursor {
+  display: inline-block; width: 8px; height: 1.1em; background: var(--amber);
+  margin-left: 4px; vertical-align: -2px; animation: blink 1s step-end infinite;
+}
+
+.headline {
+  font-weight: 700; font-size: clamp(1.7rem, 4.2vw, 2.4rem); line-height: 1.22;
+  margin: 0 0 0.85rem; letter-spacing: -0.015em;
+  background: linear-gradient(120deg, #EDEEF0 40%, var(--teal) 65%, var(--amber) 100%);
+  background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 5s ease-in-out infinite; opacity: 0;
+}
+.sub {
+  color: var(--muted); font-size: 1.02rem; line-height: 1.65; max-width: 58ch; margin: 0;
+  opacity: 0;
+}
+.sub code {
+  font-family: var(--mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  padding: 0.1rem 0.45rem; border-radius: 5px; font-size: 0.85em; color: var(--teal);
+}
+
+.panel {
+  border-radius: 14px; padding: 1.6rem; margin-bottom: 1.3rem;
+  background: var(--bg-card); backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  opacity: 0;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  transform-style: preserve-3d; will-change: transform;
+}
+.panel:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6), 0 0 40px -10px rgba(63,167,150,0.15);
+}
+
+.panel-title {
+  font-family: var(--mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); margin: 0 0 1.1rem; font-weight: 500; display: flex; align-items: center; gap: 0.5rem;
+}
+.panel-title::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem 1rem; margin: 0; }
+.meta-row { display: flex; flex-direction: column; gap: 0.25rem; }
+.meta-row dt { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.meta-row dd { margin: 0; font-family: var(--mono); font-size: 0.95rem; color: var(--text); }
+.meta-row dd.tick { color: var(--teal); font-variant-numeric: tabular-nums; }
+
+.route-table { width: 100%; border-collapse: collapse; font-size: 0.89rem; }
+.route-table th {
+  text-align: left; font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); font-weight: 500; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border);
+}
+.route-table td { padding: 0.75rem 0; border-bottom: 1px solid var(--border); vertical-align: top; transition: background 0.2s; }
+.route-table tr:last-child td { border-bottom: none; }
+.route-table tr { transition: transform 0.15s; }
+.route-table tr:hover td { background: rgba(255,255,255,0.02); }
+.route-table code { font-family: var(--mono); color: var(--teal); font-size: 0.86em; }
+
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0; padding: 0; }
+.chips li {
+  font-family: var(--mono); font-size: 0.79rem; color: var(--muted);
+  border: 1px solid var(--border); padding: 0.4rem 0.85rem; border-radius: 999px;
+  transition: all 0.25s; cursor: default; opacity: 0;
+}
+.chips li:hover {
+  color: var(--text); border-color: var(--teal); background: rgba(63,167,150,0.1);
+  transform: translateY(-2px); box-shadow: 0 6px 20px -8px var(--teal-glow);
+}
+
+.foot {
+  text-align: center; padding: 2rem 1.5rem; font-size: 0.78rem; color: var(--muted);
+  border-top: 1px solid var(--border); opacity: 0;
+}
+
+@keyframes dropIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes lineIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes ripple { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(3.2); opacity: 0; } }
+@keyframes shimmer { 0%, 100% { background-position: 0% center; } 50% { background-position: 100% center; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+@media (max-width: 480px) {
+  .meta-grid { grid-template-columns: 1fr 1fr; }
+  main { padding: 3rem 1.25rem 4rem; }
+}
+</style>
 </head>
 <body>
-  <div class="scanlines" aria-hidden="true"></div>
+<canvas id="bg-canvas"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+<div class="scanlines"></div>
 
+<div class="content">
   <header class="topbar">
     <span class="brand">pipeline<span class="brand-dot">.</span>status</span>
-    <span class="badge" id="live-badge"><span class="dot"></span>live</span>
+    <span class="badge-live"><span class="ripple-dot"></span>live</span>
   </header>
 
   <main>
     <section class="hero">
-      <div class="terminal" role="img" aria-label="Deploy log showing each pipeline stage completing successfully, ending in LIVE">
+      <div class="terminal">
         <div class="terminal-head">
           <span class="tl-dot r"></span><span class="tl-dot y"></span><span class="tl-dot g"></span>
           <span class="terminal-title">deploy.sh &mdash; azure-vm</span>
@@ -31,58 +234,31 @@
       <p class="sub">Every push to <code>main</code> runs the same five steps you just watched: build, test, package, deploy, verify. No manual SSH, no manual restarts.</p>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="panel-build">
       <h2 class="panel-title">Build info</h2>
       <dl class="meta-grid">
-        <div class="meta-row">
-          <dt>version</dt>
-          <dd>{{ version }}</dd>
-        </div>
-        <div class="meta-row">
-          <dt>commit</dt>
-          <dd>{{ commit }}</dd>
-        </div>
-        <div class="meta-row">
-          <dt>deployed</dt>
-          <dd>{{ deployed_at|default:"just now" }}</dd>
-        </div>
-        <div class="meta-row">
-          <dt>host</dt>
-          <dd>azure vm</dd>
-        </div>
+        <div class="meta-row"><dt>version</dt><dd id="v-version">a3f9c21</dd></div>
+        <div class="meta-row"><dt>commit</dt><dd id="v-commit">a3f9c21</dd></div>
+        <div class="meta-row"><dt>uptime</dt><dd class="tick" id="v-uptime">00:00:00</dd></div>
+        <div class="meta-row"><dt>host</dt><dd>azure vm</dd></div>
       </dl>
     </section>
 
     <section class="panel">
       <h2 class="panel-title">Routes</h2>
       <table class="route-table">
-        <thead>
-          <tr><th>path</th><th>returns</th><th>used for</th></tr>
-        </thead>
+        <thead><tr><th>path</th><th>returns</th><th>used for</th></tr></thead>
         <tbody>
-          <tr>
-            <td><code>/</code></td>
-            <td>this page</td>
-            <td>human-readable deploy status</td>
-          </tr>
-          <tr>
-            <td><code>/health</code></td>
-            <td><code>{"status":"ok"}</code></td>
-            <td>pipeline checks before calling deploy a success</td>
-          </tr>
+          <tr><td><code>/</code></td><td>this page</td><td>human-readable deploy status</td></tr>
+          <tr><td><code>/health</code></td><td><code>{"status":"ok"}</code></td><td>pipeline checks before calling deploy a success</td></tr>
         </tbody>
       </table>
     </section>
 
-    <section class="panel stack-panel">
+    <section class="panel">
       <h2 class="panel-title">Stack</h2>
       <ul class="chips">
-        <li>Django</li>
-        <li>Docker</li>
-        <li>GitHub Actions</li>
-        <li>Terraform</li>
-        <li>Azure VM</li>
-        <li>Slack</li>
+        <li>Django</li><li>Docker</li><li>GitHub Actions</li><li>Terraform</li><li>Azure VM</li><li>Slack</li>
       </ul>
     </section>
   </main>
@@ -90,36 +266,216 @@
   <footer class="foot">
     <span>built to prove the pipeline works, not to win a design award &mdash; then designed anyway.</span>
   </footer>
+</div>
 
-  <script>
-    const lines = [
-      { t: "$ git push origin main", d: 0 },
-      { t: "→ github actions triggered", d: 250, cls: "muted" },
-      { t: "✓ tests passed", d: 550, cls: "ok" },
-      { t: "✓ image built  app:{{ commit }}", d: 850, cls: "ok" },
-      { t: "✓ pushed to registry", d: 1150, cls: "ok" },
-      { t: "✓ deployed to azure vm", d: 1500, cls: "ok" },
-      { t: "✓ /health check passed", d: 1850, cls: "ok" },
-      { t: "● LIVE", d: 2200, cls: "live" },
-    ];
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+<script>
+// ---------- entrance choreography (anime.js) ----------
+(function(){
+  const tl = anime.timeline({ easing: 'easeOutExpo' });
+  tl.add({ targets: '.topbar', opacity: [0, 1], translateY: [-14, 0], duration: 700 })
+    .add({ targets: '.terminal', opacity: [0, 1], translateY: [26, 0], duration: 800 }, '-=450')
+    .add({ targets: '.headline', opacity: [0, 1], translateY: [16, 0], duration: 700 }, '-=500')
+    .add({ targets: '.sub', opacity: [0, 1], translateY: [12, 0], duration: 600 }, '-=450')
+    .add({ targets: '.panel', opacity: [0, 1], translateY: [24, 0], duration: 650, delay: anime.stagger(120) }, '-=350')
+    .add({ targets: '.foot', opacity: [0, 1], duration: 500 }, '-=200');
+})();
 
-    const logEl = document.getElementById("log");
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// ---------- particle network background ----------
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h, particles;
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    function renderLine(line) {
-      const span = document.createElement("div");
-      span.className = "log-line " + (line.cls || "");
-      span.textContent = line.t;
-      logEl.appendChild(span);
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const COUNT = prefersReduced ? 0 : Math.min(60, Math.floor((w * h) / 22000));
+  particles = Array.from({length: COUNT}, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+  }));
+
+  let mouse = { x: -9999, y: -9999 };
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseleave', () => { mouse.x = -9999; mouse.y = -9999; });
+
+  function tick() {
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+
+      const dx = mouse.x - p.x, dy = mouse.y - p.y;
+      const distMouse = Math.sqrt(dx*dx + dy*dy);
+      if (distMouse < 140) {
+        p.x -= dx * 0.004;
+        p.y -= dy * 0.004;
+      }
     }
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 130) {
+          ctx.strokeStyle = `rgba(63,167,150,${0.12 * (1 - dist/130)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    for (const p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(242,169,59,0.5)';
+      ctx.fill();
+    }
+    if (!prefersReduced) requestAnimationFrame(tick);
+  }
+  tick();
+})();
 
-    if (prefersReduced) {
-      lines.forEach(renderLine);
-    } else {
-      lines.forEach((line) => {
-        setTimeout(() => renderLine(line), line.d);
+// ---------- terminal typewriter (anime.js) ----------
+(function(){
+  const lines = [
+    { t: "$ git push origin main", d: 750 },
+    { t: "→ github actions triggered", d: 550, cls: "muted" },
+    { t: "✓ tests passed", d: 450, cls: "ok" },
+    { t: "✓ image built  app:a3f9c21", d: 450, cls: "ok" },
+    { t: "✓ pushed to registry", d: 450, cls: "ok" },
+    { t: "✓ deployed to azure vm", d: 450, cls: "ok" },
+    { t: "✓ /health check passed", d: 450, cls: "ok" },
+    { t: "● LIVE", d: 400, cls: "live" },
+  ];
+  const logEl = document.getElementById('log');
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function addLine(line, isLast) {
+    const span = document.createElement('div');
+    span.className = 'log-line ' + (line.cls || '');
+    span.textContent = line.t;
+    if (isLast) {
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      span.appendChild(cursor);
+    }
+    logEl.appendChild(span);
+
+    if (prefersReduced) { span.style.opacity = 1; return; }
+
+    anime({
+      targets: span,
+      opacity: [0, 1],
+      translateX: [-10, 0],
+      duration: 320,
+      easing: 'easeOutQuad',
+    });
+
+    if (line.cls === 'live') {
+      // glitch pulse: quick scale/skew jitter then settle, plus a glow flash
+      anime({
+        targets: span,
+        scale: [0.9, 1.06, 1],
+        skewX: [0, -3, 2, 0],
+        duration: 550,
+        delay: 250,
+        easing: 'easeOutElastic(1, .5)',
+      });
+      anime({
+        targets: span,
+        textShadow: [
+          '0 0 0px rgba(242,169,59,0)',
+          '0 0 24px rgba(242,169,59,0.9)',
+          '0 0 8px rgba(242,169,59,0.5)',
+        ],
+        duration: 700,
+        delay: 250,
+        easing: 'easeOutQuad',
       });
     }
-  </script>
+  }
+
+  if (prefersReduced) {
+    lines.forEach((l, i) => addLine(l, i === lines.length - 1));
+    return;
+  }
+  let elapsed = 0;
+  lines.forEach((line, i) => {
+    elapsed += line.d;
+    setTimeout(() => addLine(line, i === lines.length - 1), elapsed);
+  });
+})();
+
+// ---------- chip pop-in stagger (anime.js) ----------
+(function(){
+  anime({
+    targets: '.chips li',
+    scale: [0.7, 1],
+    opacity: [0, 1],
+    duration: 500,
+    delay: anime.stagger(70, { start: 1500 }),
+    easing: 'easeOutBack',
+  });
+})();
+
+// ---------- live uptime tick ----------
+(function(){
+  const el = document.getElementById('v-uptime');
+  const start = Date.now();
+  function fmt(s) {
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(Math.floor(s%60)).padStart(2,'0');
+    return `${h}:${m}:${sec}`;
+  }
+  setInterval(() => {
+    el.textContent = fmt((Date.now() - start) / 1000);
+  }, 1000);
+})();
+
+// ---------- 3D tilt on panels (anime.js spring-back) ----------
+(function(){
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (prefersReduced) return;
+  document.querySelectorAll('.panel, .terminal').forEach(card => {
+    card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0px)';
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      anime({
+        targets: card,
+        rotateX: -y * 5,
+        rotateY: x * 5,
+        translateY: -3,
+        duration: 250,
+        easing: 'easeOutQuad',
+      });
+    });
+    card.addEventListener('mouseleave', () => {
+      anime({
+        targets: card,
+        rotateX: 0,
+        rotateY: 0,
+        translateY: 0,
+        duration: 600,
+        easing: 'easeOutElastic(1, .6)',
+      });
+    });
+  });
+})();
+</script>
 </body>
 </html>
